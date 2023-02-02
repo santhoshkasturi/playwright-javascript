@@ -1,9 +1,6 @@
-# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
-# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
-
-name: Node.js Package
-
 on:
+  schedule:
+  - cron: "30 3 * * *"
   push:
     branches: [ "main" ]
   pull_request:
@@ -14,20 +11,40 @@ permissions:
 
 jobs:
   build:
+
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up node js
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 16
-          
-      - name: Installing dependencies
-        run: npm install
-        
-      - name: running tests
-        run: npm test
- 
+    - uses: actions/checkout@v3
 
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.10"
 
+    - name: Sending the job trigger mail
+      run:
+        python trigger_email.py
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pipenv
+    - name: Install pipfile dependencies
+      run: |
+        pipenv install -d
+    - name: Install playwright
+      run: |
+        pipenv run playwright install
+    - name: Run pytest
+      run: |
+        pipenv run pytest -v -n 5
+    - name: Zipping the report folder
+      if: always()
+      run:
+        python zip_report.py
+
+    - name: Sending the final test report
+      if: always()
+      run:
+        python report_email.py
